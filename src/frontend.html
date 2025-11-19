@@ -6,269 +6,155 @@ Only for education and study use.
 -->
 
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="h-full">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>订阅转换器</title>
-
-  <!-- 动态加载 converter.js -->
-  <script>
-    const REPO = 'siiway/subconverter-snippet';
-    const CORE_URL = `https://github.com/${REPO}/releases/download/latest/converter.js`;
-    const script = document.createElement('script');
-    script.src = CORE_URL + '?t=' + Date.now();
-    script.onerror = () => {
-      document.getElementById('output').textContent = '加载失败：无法加载 GitHub Releases 附件';
-    };
-    document.head.appendChild(script);
-  </script>
-
+  <title>Clash ↔ 链接 互转工具</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root {
-      --bg: #f8f9fa;
-      --card: #ffffff;
-      --text: #212529;
-      --primary: #4361ee;
-      --success: #2fb344;
-      --border: #dee2e6;
-      --shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #121212;
-        --card: #1e1e1e;
-        --text: #e9ecef;
-        --border: #333;
-        --primary: #5c7cfa;
-        --success: #4ade80;
-      }
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-      padding: 20px;
-    }
-    .container { max-width: 900px; margin: 0 auto; }
-    header { text-align: center; margin-bottom: 2rem; }
-    h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 0.5rem; }
-    .repo-link { font-size: 0.9rem; color: #666; text-decoration: none; }
-    .repo-link:hover { text-decoration: underline; }
-
-    .card {
-      background: var(--card);
-      border-radius: 12px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-      box-shadow: var(--shadow);
-      border: 1px solid var(--border);
-    }
-
     textarea {
-      width: 100%;
-      height: 300px;
-      padding: 12px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 14px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      resize: vertical;
-      background: var(--bg);
-      color: var(--text);
-    }
-
-    .btn-group {
-      display: flex;
-      gap: 12px;
-      margin: 1rem 0;
-      flex-wrap: wrap;
-    }
-    button {
-      flex: 1;
-      min-width: 120px;
-      padding: 12px;
-      font-size: 1rem;
-      font-weight: 600;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .btn-convert { background: var(--primary); color: white; }
-    .btn-convert:hover { background: #3a56d4; transform: translateY(-1px); }
-    .btn-copy { background: var(--success); color: white; }
-    .btn-copy:hover { background: #27a33a; transform: translateY(-1px); }
-    .btn-clear { background: #6c757d; color: white; }
-    .btn-clear:hover { background: #5a6268; }
-
-    pre {
-      background: #f1f3f5;
-      color: #212529;
-      padding: 16px;
-      border-radius: 8px;
-      overflow-x: auto;
-      font-size: 13px;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      border: 1px solid var(--border);
-      position: relative;
-    }
-    @media (prefers-color-scheme: dark) {
-      pre { background: #2d2d2d; color: #f8f9fa; }
-    }
-
-    .copy-feedback {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: rgba(0,0,0,0.7);
-      color: white;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    .copy-feedback.show { opacity: 1; }
-
-    .protocols {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 10px;
-      margin-top: 1rem;
-    }
-    .protocol {
-      text-align: center;
-      padding: 10px;
-      background: var(--bg);
-      border-radius: 8px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      border: 1px solid var(--border);
-    }
-
-    footer {
-      text-align: center;
-      margin-top: 3rem;
-      font-size: 0.8rem;
-      color: #888;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
     }
   </style>
-
-  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
 </head>
 
-<body>
-  <div class="container">
-    <header>
-      <h1>订阅转换器</h1>
-      <p>支持 <strong>11 种协议</strong> · 纯前端 · 无后端 · 防墙</p>
-      <a href="https://github.com/siiway/subconverter-snippet" target="_blank" class="repo-link">
-        GitHub: siiway/subconverter-snippet
-      </a>
-    </header>
-
-    <div class="card">
-      <textarea id="input" placeholder="在此粘贴订阅链接（每行一个）或 Clash YAML 配置"></textarea>
-
-      <div class="btn-group">
-        <button class="btn-convert" onclick="convert()">链接 → Clash</button>
-        <button class="btn-convert" onclick="reverse()">Clash → 链接</button>
-        <button class="btn-clear" onclick="clearInput()">清空</button>
-      </div>
-
-      <div style="position:relative;">
-        <pre id="output">加载中，请稍候...</pre>
-        <div id="copyFeedback" class="copy-feedback">已复制！</div>
-        <button class="btn-copy" onclick="copyOutput()" style="position:absolute; top:8px; right:8px; padding:8px 12px; font-size:0.9rem;">
-          复制
-        </button>
+<body class="h-full bg-gray-50">
+  <div class="min-h-full flex flex-col">
+    <!-- 标题栏 -->
+    <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-6 shadow-lg">
+      <div class="max-w-6xl mx-auto px-6">
+        <h1 class="text-3xl font-bold">Clash ↔ 订阅链接 互转神器</h1>
+        <p class="mt-2 opacity-90">支持 proxies / payload / proxy-providers · 零字段丢失 · 2025 最新标准</p>
       </div>
     </div>
 
-    <div class="card">
-      <h3>支持协议</h3>
-      <div class="protocols">
-        <div class="protocol">SS</div>
-        <div class="protocol">SSR</div>
-        <div class="protocol">VMess</div>
-        <div class="protocol">VLESS</div>
-        <div class="protocol">Trojan</div>
-        <div class="protocol">Hysteria2</div>
-        <div class="protocol">TUIC</div>
-        <div class="protocol">WireGuard</div>
-        <div class="protocol">HTTP</div>
-        <div class="protocol">SOCKS5</div>
+    <div class="flex-1 max-w-6xl mx-auto w-full px-6 py-8 grid lg:grid-cols-2 gap-8">
+      <!-- 左侧：Clash 配置 -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-2xl font-semibold text-gray-800">Clash 配置（支持 payload）</h2>
+          <button id="paste-clash"
+            class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition text-sm">粘贴</button>
+        </div>
+        <textarea id="clash-input"
+          class="w-full h-96 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          placeholder="粘贴 Clash 配置或 proxy-provider 内容，支持 proxies: / payload: / 直接 - 开头"></textarea>
+        <div class="flex gap-3">
+          <button id="to-links"
+            class="flex-1 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium">Clash →
+            订阅链接</button>
+        </div>
+      </div>
+
+      <!-- 右侧：订阅链接 -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-2xl font-semibold text-gray-800">订阅链接（每行一个）</h2>
+          <div class="flex gap-2">
+            <button id="paste-links"
+              class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition text-sm">粘贴</button>
+            <button id="copy-links"
+              class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm">复制</button>
+          </div>
+        </div>
+        <textarea id="links-input"
+          class="w-full h-96 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+          placeholder="每行一个订阅链接（ss:// vmess:// vless:// trojan:// 等）"></textarea>
+
+        <!-- 输出格式选择 -->
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <p class="text-sm font-medium text-gray-700 mb-3">输出 Clash 格式：</p>
+          <div class="grid grid-cols-3 gap-3">
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="radio" name="output-mode" value="proxies" checked
+                class="text-indigo-600 focus:ring-indigo-500">
+              <span class="text-sm">proxies:</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="radio" name="output-mode" value="payload" class="text-purple-600 focus:ring-purple-500">
+              <span class="text-sm font-medium text-purple-700">payload:（推荐）</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="radio" name="output-mode" value="none" class="text-gray-600 focus:ring-gray-500">
+              <span class="text-sm">无前缀（追加用）</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <button id="to-clash"
+            class="flex-1 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium">订阅链接 →
+            Clash 配置</button>
+        </div>
       </div>
     </div>
 
-    <footer>
-      <p>© 2025 SiiWay Team · 仅供学习研究使用</p>
-    </footer>
+    <!-- 结果展示区 -->
+    <div class="max-w-6xl mx-auto w-full px-6 pb-8">
+      <div id="result" class="hidden mt-6 p-6 bg-green-50 border-2 border-green-300 rounded-lg">
+        <pre id="result-text" class="text-sm whitespace-pre-wrap"></pre>
+        <div class="mt-4 text-right">
+          <button id="copy-result"
+            class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition">复制结果</button>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <script>
-    const output = document.getElementById('output');
-    const feedback = document.getElementById('copyFeedback');
+  <script type="module">
+    import { clashToLink, linkToClash } from "./converter.ts";
 
-    script.onload = () => {
-      output.textContent = '就绪！请粘贴内容开始转换';
+    const clashInput = document.getElementById("clash-input");
+    const linksInput = document.getElementById("links-input");
+    const result = document.getElementById("result");
+    const resultText = document.getElementById("result-text");
+
+    // Clash → 链接
+    document.getElementById("to-links").onclick = () => {
+      const yaml = clashInput.value.trim();
+      if (!yaml) return alert("请先输入 Clash 配置");
+      const links = clashToLink(yaml);
+      linksInput.value = links;
+      showResult(links, "转换成功！已生成订阅链接");
     };
 
-    function convert() {
-      const input = document.getElementById('input').value.trim();
-      if (!input) return output.textContent = '请输入内容';
-      const links = input.split('\n').filter(Boolean);
-      try {
-        output.textContent = linkToClash(links);
-      } catch (e) {
-        output.textContent = `转换失败：${e.message}`;
-      }
-    }
+    // 链接 → Clash
+    document.getElementById("to-clash").onclick = () => {
+      const links = linksInput.value.trim().split("\n").filter(Boolean);
+      if (links.length === 0) return alert("请先输入订阅链接");
+      const mode = document.querySelector('input[name="output-mode"]:checked').value;
+      const yaml = linkToClash(links, mode);
+      clashInput.value = yaml;
+      showResult(yaml, `转换成功！已生成 ${mode === "payload" ? "proxy-provider 推荐格式 (payload:)" : mode === "proxies" ? "标准 proxies:" : "无前缀节点列表"}`);
+    };
 
-    function reverse() {
-      const yaml = document.getElementById('input').value;
-      if (!yaml.trim()) return output.textContent = '请输入 Clash YAML';
-      try {
-        output.textContent = clashToLink(yaml);
-      } catch (e) {
-        output.textContent = `转换失败：${e.message}`;
-      }
-    }
+    // 复制结果
+    document.getElementById("copy-result").onclick = () => {
+      navigator.clipboard.writeText(resultText.textContent);
+      alert("已复制到剪贴板！");
+    };
 
-    function clearInput() {
-      document.getElementById('input').value = '';
-      output.textContent = '已清空，请重新输入';
-    }
+    document.getElementById("copy-links").onclick = () => {
+      navigator.clipboard.writeText(linksInput.value);
+      alert("订阅链接已复制！");
+    };
 
-    async function copyOutput() {
-      const text = output.textContent;
-      if (!text || text.includes('加载中') || text.includes('错误')) return;
+    // 一键粘贴
+    document.getElementById("paste-clash").onclick = async () => {
+      clashInput.value = await navigator.clipboard.readText();
+    };
+    document.getElementById("paste-links").onclick = async () => {
+      linksInput.value = await navigator.clipboard.readText();
+    };
 
-      try {
-        await navigator.clipboard.writeText(text);
-        feedback.classList.add('show');
-        setTimeout(() => feedback.classList.remove('show'), 1500);
-      } catch (err) {
-        // fallback
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        feedback.textContent = '已复制*';
-        feedback.classList.add('show');
-        setTimeout(() => {
-          feedback.textContent = '已复制！';
-          feedback.classList.remove('show');
-        }, 1500);
-      }
+    function showResult(text, title = "成功") {
+      result.classList.remove("hidden");
+      resultText.textContent = text;
+      document.querySelector("#result > div").innerHTML = `<strong class="text-green-800">${title}</strong>`;
     }
   </script>
 </body>
+
 </html>
