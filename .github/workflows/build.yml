@@ -58,9 +58,9 @@ jobs:
           tag_name: latest
           name: "Build @ ${{ steps.inject_core.outputs.UTC_TIME }}"
           files: |
-            src/snippet.js
-            src/frontend.html
             dist/converter.bundle.js
+            src/frontend.html
+            src/snippet.js
           draft: false
           prerelease: false
           preserve_order: true

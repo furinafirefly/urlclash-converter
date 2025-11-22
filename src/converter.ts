@@ -1217,7 +1217,7 @@ function generateClashNode(node: any): string {
     port: node.port,
   };
 
-  // 自动复制所有有效字段（最强兼容）
+  // 自动复制所有有效字段
   const fieldsToCopy = [
     "uuid",
     "password",
@@ -1254,7 +1254,38 @@ function generateClashNode(node: any): string {
   // sni → servername 兼容
   if (node.sni && !clashNode.servername) clashNode.servername = node.sni;
 
-  return genYaml(clashNode, { indent: 2 })
+  // 关键：深度清理所有空对象、空数组、空字符串
+  const cleanEmpty = (obj: any): any => {
+    if (obj === null || obj === undefined) return undefined;
+    if (Array.isArray(obj)) {
+      const cleaned = obj
+        .map(cleanEmpty)
+        .filter((v) => v !== undefined && v !== null);
+      return cleaned.length > 0 ? cleaned : undefined;
+    }
+    if (typeof obj === "object") {
+      const cleaned: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        const cleanedValue = cleanEmpty(value);
+        if (
+          cleanedValue !== undefined &&
+          cleanedValue !== null &&
+          cleanedValue !== "" &&
+          (typeof cleanedValue !== "object" ||
+            Object.keys(cleanedValue).length > 0)
+        ) {
+          cleaned[key] = cleanedValue;
+        }
+      }
+      return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+    }
+    return obj;
+  };
+
+  const cleanedNode = cleanEmpty(clashNode);
+
+  // 生成 YAML（使用 yaml 库的 indent: 2）
+  return genYaml(cleanedNode, { indent: 2 })
     .trim()
     .split("\n")
     .map((line) => (line ? "  " + line : line))
