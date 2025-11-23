@@ -12,6 +12,7 @@
     },
     "dependencies": {
         "esbuild": "^0.27.0",
+        "ts-punycode": "^0.1.0",
         "yaml": "^2.8.1"
     }
 }

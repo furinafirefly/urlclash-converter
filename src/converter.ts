@@ -4,6 +4,7 @@
 // 本工具仅提供 URL 和 Clash Config 的配置文件格式转换，不存储任何信息，不提供任何代理服务，一切使用产生后果由使用者自行承担，SiiWay Team 及开发本工具的成员不负任何责任.
 
 import { parse as parseYaml, stringify as genYaml } from "yaml";
+import { punycodeDomain } from "./utils";
 
 // ====================== 正向：链接 → Clash ======================
 export function linkToClash(
@@ -526,24 +527,39 @@ function URI_VMESS(line: string): IProxyVmessConfig {
  */
 function URI_VLESS(line: string): IProxyVlessConfig {
   line = line.split("vless://")[1];
-  let isShadowrocket;
+  let isShadowrocket = false;
   let parsed = /^(.*?)@(.*?):(\d+)\/?(\?(.*?))?(?:#(.*?))?$/.exec(line)!;
+
+  // Shadowrocket 特殊格式：vless://base64?...#name
   if (!parsed) {
-    const [_, base64, other] = /^(.*?)(\?.*?$)/.exec(line)!;
-    line = `${atob(base64)}${other}`;
-    parsed = /^(.*?)@(.*?):(\d+)\/?(\?(.*?))?(?:#(.*?))?$/.exec(line)!;
-    isShadowrocket = true;
+    const match = line.match(/^([a-zA-Z0-9+/=]+)(\?.*?)?(#.*)?$/);
+    if (match) {
+      const base64 = match[1];
+      const query = match[2] || "";
+      const hash = match[3] || "";
+      try {
+        const decoded = atob(base64) + query + hash;
+        line = decoded;
+        parsed = /^(.*?)@(.*?):(\d+)\/?(\?(.*?))?(?:#(.*?))?$/.exec(decoded)!;
+        isShadowrocket = true;
+      } catch (e) {
+        console.warn("Shadowrocket base64 decode failed:", e);
+      }
+    }
   }
+
+  if (!parsed) throw new Error("Invalid VLESS URI");
+
   const [, uuidRaw, server, portStr, , addons = "", nameRaw] = parsed;
   let uuid = uuidRaw;
-  let name = nameRaw;
   if (isShadowrocket) {
     uuid = uuidRaw.replace(/^.*?:/g, "");
   }
 
   const port = parseInt(portStr, 10);
   uuid = decodeURIComponent(uuid);
-  name = decodeURIComponent(name);
+  const nameEncoded = nameRaw || "";
+  const name = decodeURIComponent(nameEncoded);
 
   const proxy: IProxyVlessConfig = {
     type: "vless",
@@ -555,131 +571,89 @@ function URI_VLESS(line: string): IProxyVlessConfig {
 
   const params: Record<string, string> = {};
   for (const addon of addons.split("&")) {
-    const [key, valueRaw] = addon.split("=");
+    if (!addon) continue;
+    const [key, valueRaw = ""] = addon.split("=");
     const value = decodeURIComponent(valueRaw);
-    params[key] = value;
+    params[key.toLowerCase()] = value; // 统一小写，兼容大小写混写
   }
 
   proxy.name =
-    trimStr(name) ??
-    trimStr(params.remarks) ??
-    trimStr(params.remark) ??
+    trimStr(name) ||
+    trimStr(params.remarks) ||
+    trimStr(params.remark) ||
     `VLESS ${server}:${port}`;
 
+  // TLS 处理
   proxy.tls = (params.security && params.security !== "none") || undefined;
-  if (isShadowrocket && /TRUE|1/i.test(params.tls)) {
+  if (isShadowrocket && /TRUE|1/i.test(params.tls || "")) {
     proxy.tls = true;
     params.security = params.security ?? "reality";
   }
-  proxy.servername = params.sni || params.peer;
+
+  proxy.servername = params.sni || params.peer || undefined;
   proxy.flow = params.flow ? "xtls-rprx-vision" : undefined;
-
   proxy["client-fingerprint"] = params.fp as ClientFingerprint;
-  proxy.alpn = params.alpn ? params.alpn.split(",") : undefined;
-  proxy["skip-cert-verify"] = /(TRUE)|1/i.test(params.allowInsecure);
+  proxy.alpn = params.alpn
+    ? params.alpn.split(",").map((a) => a.trim())
+    : undefined;
+  proxy["skip-cert-verify"] = /(TRUE|1)/i.test(
+    params.allowinsecure || params.allowInsecure || ""
+  );
 
-  if (["reality"].includes(params.security)) {
+  // Reality 参数
+  if (params.security === "reality") {
     const opts: IProxyVlessConfig["reality-opts"] = {};
-    if (params.pbk) {
-      opts["public-key"] = params.pbk;
-    }
-    if (params.sid) {
-      opts["short-id"] = params.sid;
-    }
-    if (params.spx) {
-      opts["spider-x"] = params.spx;
-    }
-    if (params.pqv) {
-      opts["mldsa65-verify"] = params.pqv;
-    }
-    if (params.ech) {
-      opts.ech = params.ech;
-    }
+    if (params.pbk) opts["public-key"] = params.pbk;
+    if (params.sid) opts["short-id"] = params.sid;
+    if (params.spx) opts["spider-x"] = params.spx;
+    if (params.pqv) opts["mldsa65-verify"] = params.pqv;
+    if (params.ech) opts.ech = params.ech;
     if (Object.keys(opts).length > 0) {
       proxy["reality-opts"] = opts;
     }
   }
 
-  let httpupgrade = false;
-  proxy["ws-opts"] = {
-    headers: undefined,
-    path: undefined,
-  };
+  // 网络类型
+  let network: NetworkType = "tcp";
+  if (params.type === "ws" || params.type === "websocket") network = "ws";
+  else if (params.type === "http") network = "http";
+  else if (params.type === "grpc") network = "grpc";
+  else if (params.type === "h2") network = "h2";
+  proxy.network = network;
 
-  proxy["http-opts"] = {
-    headers: undefined,
-    path: undefined,
-  };
-  proxy["grpc-opts"] = {};
-
-  if (params.headerType === "http") {
-    proxy.network = "http";
-  } else if (params.type === "ws") {
-    proxy.network = "ws";
-    httpupgrade = true;
-  } else {
-    proxy.network = ["tcp", "ws", "http", "grpc", "h2"].includes(params.type)
-      ? (params.type as NetworkType)
-      : "tcp";
-  }
-  if (!proxy.network && isShadowrocket && params.obfs) {
-    switch (params.type) {
-      case "sw":
-        proxy.network = "ws";
-        break;
-      case "http":
-        proxy.network = "http";
-        break;
-      case "h2":
-        proxy.network = "h2";
-        break;
-      case "grpc":
-        proxy.network = "grpc";
-        break;
-      default: {
-        break;
-      }
-    }
-  }
-  if (["websocket"].includes(proxy.network)) {
-    proxy.network = "ws";
-  }
-  if (proxy.network && !["tcp", "none"].includes(proxy.network)) {
-    const opts: Record<string, any> = {};
-    const host = params.host ?? params.obfsParam;
+  // ws/http/grpc opts
+  if (["ws", "http", "grpc", "h2"].includes(network)) {
+    const opts: any = {};
+    const host = params.host || params.obfsparam || params["obfs-param"];
     if (host) {
-      if (params.obfsParam) {
-        try {
-          const parsed = JSON.parse(host);
-          opts.headers = parsed;
-        } catch (e) {
-          console.warn("[URI_VLESS] host JSON.parse failed:", e);
-          opts.headers = { Host: host };
+      try {
+        opts.headers = { Host: host };
+        if (host.startsWith("{") && host.endsWith("}")) {
+          opts.headers = JSON.parse(host);
         }
-      } else {
+      } catch {
         opts.headers = { Host: host };
       }
     }
-    if (params.path) {
-      opts.path = params.path;
-    }
-    if (httpupgrade) {
+    if (params.path) opts.path = params.path;
+    if (network === "ws" && params.headerType === "http") {
       opts["v2ray-http-upgrade"] = true;
-      opts["v2ray-http-upgrade-fast-open"] = true;
     }
-    if (Object.keys(opts).length > 0) {
-      proxy[`ws-opts`] = opts;
+    if (Object.keys(opts).length > 0 && network !== "tcp") {
+      proxy[`${network}-opts`] = opts;
     }
   }
 
+  // 自动填充 servername（很多客户端省略 sni）
   if (proxy.tls && !proxy.servername) {
-    if (proxy.network === "ws") {
-      proxy.servername = proxy["ws-opts"]?.headers?.Host;
-    } else if (proxy.network === "http") {
-      const httpHost = proxy["http-opts"]?.headers?.Host;
-      proxy.servername = Array.isArray(httpHost) ? httpHost[0] : httpHost;
+    if (proxy["ws-opts"]?.headers?.Host) {
+      proxy.servername = proxy["ws-opts"].headers.Host;
+    } else if (proxy["http-opts"]?.headers?.Host) {
+      const h = proxy["http-opts"].headers.Host;
+      proxy.servername = Array.isArray(h) ? h[0] : h;
     }
   }
+
   return proxy;
 }
 
@@ -1240,7 +1214,7 @@ function generateClashNode(node: any): string {
   const clashNode: any = {
     name: node.name || "Unnamed",
     type: node.type,
-    server: node.server,
+    server: node.server ? punycodeDomain(node.server) : node.server,
     port: node.port,
   };
 
@@ -1318,7 +1292,7 @@ function generateClashNode(node: any): string {
 // ====================== 生成原始链接（完整支持所有协议）=====================
 export function generateUri(node: any): string {
   const name = encodeURIComponent(node.name || "Node");
-  const server = node.server;
+  const server = node.server ? punycodeDomain(node.server) : node.server;
   const port = node.port;
 
   switch (node.type) {

@@ -11,6 +11,9 @@ importers:
       esbuild:
         specifier: ^0.27.0
         version: 0.27.0
+      ts-punycode:
+        specifier: ^0.1.0
+        version: 0.1.0
       yaml:
         specifier: ^2.8.1
         version: 2.8.1
@@ -182,6 +185,10 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  ts-punycode@0.1.0:
+    resolution: {integrity: sha512-e1OQlzExOzqy+MR1myuAsrx7YkWbQNW1l2SHtkqK3G4F4vm/61IEI3Hvwh3jgCLKho5lDBwJhcAQLkoKVIDj0Q==}
+    hasBin: true
+
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
@@ -300,6 +307,8 @@ snapshots:
       '@esbuild/win32-arm64': 0.27.0
       '@esbuild/win32-ia32': 0.27.0
       '@esbuild/win32-x64': 0.27.0
+
+  ts-punycode@0.1.0: {}
 
   typescript@5.9.3: {}
 

@@ -64,6 +64,8 @@ vless://这是UUID@这是服务器:11451?type=tcp&encryption=none&flow=xtls-rprx
 - 支持多种协议的分享链接和 Clash 配置互转
 - 支持中文等特殊字符
 - 纯本地处理, 数据不上传不保存
+- 转换为 Clash Config 时自动清理空对象
+- 主机名中非 ASCII 字符自动转换为 Punycode
 
 ## 自部署
 
